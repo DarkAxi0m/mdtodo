@@ -9,35 +9,35 @@ import (
 )
 
 // ---------- Misc function-------------------
-func updateSelected[T any](items []T, selected T, direction int) *T {
+func updateSelected[T any](items []*T, selected *T, direction int) *T {
 	if len(items) == 0 {
 		return nil
 	}
 
 	selectedFound := false
 	for i, item := range items {
-		if &selected == &item {
+		if selected == item {
 			selectedFound = true
 			if direction == 1 {
 				if i+1 < len(items) {
-					return &items[i+1]
+					return items[i+1]
 				} else {
-					return &items[0]
+					return items[0]
 				}
 			} else if direction == -1 {
 				if i-1 >= 0 {
-					return &items[i-1]
+					return items[i-1]
 				} else {
-					return &items[len(items)-1]
+					return items[len(items)-1]
 				}
 			}
 			break
 		}
 	}
 	if !selectedFound {
-		return &items[0]
+		return items[0]
 	}
-	return &selected
+	return selected
 }
 
 //---------- Collection-------------------
@@ -53,6 +53,12 @@ func (b *Collection[T]) Add(item *T) *T {
 	return item
 }
 
+func (b *Collection[T]) RemoveSelected() {
+	if b.selected != nil {
+		b.Remove(b.selected)
+	}
+}
+
 func (b *Collection[T]) Remove(item *T) {
 	for i, t := range b.items {
 		if t == item {
@@ -64,62 +70,45 @@ func (b *Collection[T]) Remove(item *T) {
 }
 
 func (b *Collection[T]) Select(dir int) T {
-	b.selected = *updateSelected(b.items, b.selected, dir)
+	b.selected = updateSelected(b.items, b.selected, dir)
 	return *b.selected
 }
 
-// ---------- Task-------------------
+// ---------- Task ann Projects-------------------
 type Task struct {
 	done bool
 	name string
 }
 
 type Project struct {
-	name     string
-	tasks    []*Task
-	selected *Task
+	name  string
+	tasks Collection[Task]
 }
 
-func (tg *Project) Add(name string) {
-	t := &Task{
-		name: strings.TrimSuffix(name, "\n"),
+func (b *Project) Add(name string) *Task {
+	item := &Task{
 		done: false,
+		name: strings.TrimSuffix(name, "\n"),
 	}
 
-	tg.tasks = append(tg.tasks, t)
-	tg.selected = t
-}
+	b.tasks.Add(item)
 
-func (tg *Project) Remove(task *Task) {
-	for i, t := range tg.tasks {
-		if t == task {
-			tg.Select(-1)
-			tg.tasks = append(tg.tasks[:i], tg.tasks[i+1:]...)
-			break
-		}
-	}
-}
-
-func (tg *Project) Select(dir int) *Task {
-	tg.selected = *updateSelected(tg.tasks, tg.selected, dir)
-	return tg.selected
+	return item
 }
 
 func newProject(name string) *Project {
 	tasks := &Project{
-		tasks: make([]*Task, 0),
+		tasks: Collection[Task]{items: make([]*Task, 0)},
 		name:  strings.TrimSuffix(name, "\n"),
 	}
 	return tasks
 }
 
-//---------- Projects Stucts-------------------
-
 func newProjects() Collection[Project] {
 	return Collection[Project]{items: make([]*Project, 0)}
 }
 
-//---------- Main-------------------
+//---------- AppState-------------------
 
 type AppState int
 
@@ -132,6 +121,8 @@ const (
 func (s AppState) String() string {
 	return [...]string{"N", "I", "D"}[s]
 }
+
+//---------- Main-------------------
 
 var (
 	filename string
@@ -233,10 +224,10 @@ func prevProject(g *gocui.Gui, v *gocui.View) error {
 
 func nextTask(g *gocui.Gui, v *gocui.View) error {
 	if tasks.selected != nil {
-		tasks.selected.Select(-1)
+		tasks.selected.tasks.Select(-1)
 	}
 	if state == DeleteTask {
-		tasks.selected.Remove(tasks.selected.selected)
+		tasks.selected.tasks.RemoveSelected()
 		state = Normal
 	}
 	redraw(g)
@@ -244,10 +235,10 @@ func nextTask(g *gocui.Gui, v *gocui.View) error {
 }
 func prevTask(g *gocui.Gui, v *gocui.View) error {
 	if tasks.selected != nil {
-		tasks.selected.Select(+1)
+		tasks.selected.tasks.Select(+1)
 	}
 	if state == DeleteTask {
-		tasks.selected.Remove(tasks.selected.selected)
+		tasks.selected.tasks.RemoveSelected()
 		state = Normal
 	}
 	redraw(g)
@@ -287,15 +278,15 @@ func todoBinding(g *gocui.Gui) error {
 	})
 
 	g.SetKeybinding(name, gocui.KeySpace, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
-		if (tasks.selected != nil) && (tasks.selected.selected != nil) {
-			tasks.selected.selected.done = !tasks.selected.selected.done
+		if (tasks.selected != nil) && (tasks.selected.tasks.selected != nil) {
+			tasks.selected.tasks.selected.done = !tasks.selected.tasks.selected.done
 		}
 		redraw(g)
 		return nil
 	})
 	g.SetKeybinding(name, 'd', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		if state == DeleteTask {
-			tasks.selected.Remove(tasks.selected.selected)
+			tasks.selected.tasks.RemoveSelected()
 			state = Normal
 		} else {
 			state = DeleteTask
@@ -311,16 +302,16 @@ func redraw(g *gocui.Gui) {
 		v.Clear()
 		for _, group := range tasks.items {
 			if group == tasks.selected {
-				fmt.Fprintln(v, "\n»", group.name, "(", len(group.tasks), ")")
+				fmt.Fprintln(v, "\n»", group.name, "(", len(group.tasks.items), ")")
 			} else {
-				fmt.Fprintln(v, "\n ", group.name, "(", len(group.tasks), ")")
+				fmt.Fprintln(v, "\n ", group.name, "(", len(group.tasks.items), ")")
 			}
-			for _, task := range group.tasks {
+			for _, task := range group.tasks.items {
 				checked := "☐"
 				if task.done {
 					checked = "\U0001f5f9"
 				}
-				if (task == group.selected) && (group == tasks.selected) {
+				if (task == group.tasks.selected) && (group == tasks.selected) {
 
 					fmt.Fprintln(v, " »", checked, task.name)
 				} else {
@@ -357,8 +348,6 @@ func inputView(g *gocui.Gui, cv *gocui.View) error {
 
 	state = Insert
 	redraw(g)
-
-	//g.DeleteKeybindings("todo")
 
 	if iv, err := g.SetView(name, maxX/2-12, maxY/2, maxX/2+12, maxY/2+2, 0); err != nil {
 		if err != gocui.ErrUnknownView {
