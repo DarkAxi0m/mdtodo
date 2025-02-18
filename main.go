@@ -177,9 +177,7 @@ func main() {
 	g.SelFgColor = gocui.ColorGreen
 	g.SetManagerFunc(layout)
 
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		log.Panicln(err)
-	}
+	g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
@@ -256,6 +254,12 @@ func todoBinding(g *gocui.Gui) error {
 
 	g.SetKeybinding(name, gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = Normal
+		redraw(g)
+		return nil
+	})
+
+	g.SetKeybinding(name, ";", gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+		tasks.selected.Add("ASD")
 		redraw(g)
 		return nil
 	})
