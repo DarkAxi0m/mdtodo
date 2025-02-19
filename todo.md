@@ -10,7 +10,7 @@
 - [ ] key bindings
 - [ ] edit task
 - [x] autosave
-- [ ] hide done
+- [x] hide done
 - [ ] hide empty projects
 - [x] Dirty Flag
 - [ ] up down, between projects

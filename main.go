@@ -71,9 +71,9 @@ func (b *Collection[T]) Remove(item *T) {
 	}
 }
 
-func (b *Collection[T]) Select(dir int) T {
+func (b *Collection[T]) Select(dir int) *T {
 	b.selected = updateSelected(b.items, b.selected, dir)
-	return *b.selected
+	return b.selected
 }
 
 // ---------- Task ann Projects-------------------
@@ -112,6 +112,17 @@ func (b *Project) Add(name string) *Task {
 	b.tasks.Add(item)
 
 	return item
+}
+
+func (b *Project) Select(dir int, skipdone bool) *Task {
+	var t *Task
+	for {
+		t = b.tasks.Select(dir)
+		if t == nil || !skipdone || !t.done {
+			break
+		}
+	}
+	return t
 }
 
 func newProject(name string) *Project {
@@ -209,6 +220,7 @@ var (
 	viewname = "todo"
 	dirty    = false
 	autosave = true
+	hidedone = true
 )
 
 func main() {
@@ -234,6 +246,12 @@ func main() {
 
 	g.SetKeybinding("", 'r', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		tasks, _ = ReadFromFile(filename)
+		redraw(g)
+		return nil
+	})
+
+	g.SetKeybinding("", 'h', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+		hidedone = !hidedone
 		redraw(g)
 		return nil
 	})
@@ -304,7 +322,7 @@ func prevProject(g *gocui.Gui, v *gocui.View) error {
 
 func nextTask(g *gocui.Gui, v *gocui.View) error {
 	if tasks.selected != nil {
-		tasks.selected.tasks.Select(-1)
+		tasks.selected.Select(-1, hidedone)
 	}
 	if state == DeleteTask {
 		tasks.selected.tasks.RemoveSelected()
@@ -317,7 +335,7 @@ func nextTask(g *gocui.Gui, v *gocui.View) error {
 
 func prevTask(g *gocui.Gui, v *gocui.View) error {
 	if tasks.selected != nil {
-		tasks.selected.tasks.Select(+1)
+		tasks.selected.Select(+1, hidedone)
 	}
 	if state == DeleteTask {
 		tasks.selected.tasks.RemoveSelected()
@@ -398,28 +416,37 @@ func redraw(g *gocui.Gui) {
 			} else {
 				fmt.Fprintln(v, "\n", " ", group.name, "(", len(group.tasks.items), ")")
 			}
-			for _, task := range group.tasks.items {
-				checked := STYLE_Checked
-				if task.done {
-					checked = STYLE_UnChecked
-				}
-				if (task == group.tasks.selected) && (group == tasks.selected) {
 
-					fmt.Fprintln(v, STYLE_LineSelector, checked, task.name)
-				} else {
-					fmt.Fprintln(v, " ", checked, task.name)
+			for _, task := range group.tasks.items {
+				if !hidedone || !task.done {
+					checked := STYLE_Checked
+					if task.done {
+						checked = STYLE_UnChecked
+					}
+					if (task == group.tasks.selected) && (group == tasks.selected) {
+
+						fmt.Fprintln(v, STYLE_LineSelector, checked, task.name)
+					} else {
+						fmt.Fprintln(v, " ", checked, task.name)
+					}
 				}
 
 			}
 		}
 	}
 	if v, e := g.View("footer"); e == nil {
+		//this needs more thought
 		v.Clear()
 		dirtyStr := " "
 		if dirty {
 			dirtyStr = "D"
 		}
-		fmt.Fprintln(v, state, dirtyStr)
+
+		hidedoneStr := " "
+		if hidedone {
+			hidedoneStr = "H"
+		}
+		fmt.Fprintln(v, state, dirtyStr, hidedoneStr)
 	}
 
 }
