@@ -9,4 +9,11 @@
 - [ ] Esp on task add
 - [ ] key bindings
 - [ ] edit task
+- [ ] autosave
+- [ ] hide done
+- [ ] hide empty projects
+- [ ] Dirty Flag
+
+## Later Ideas
+- [ ] Undo Stack
 

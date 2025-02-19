@@ -201,6 +201,7 @@ var (
 	tasks    Projects
 	state    AppState
 	name     = "todo"
+	dirty    = false
 )
 
 func main() {
@@ -217,8 +218,10 @@ func main() {
 
 	g.SetManagerFunc(layout)
 
-	g.SetKeybinding("", 's', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding("", 'w', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		tasks.SaveToFile(filename)
+		dirty = false
+		redraw(g)
 		return nil
 	})
 
@@ -242,17 +245,6 @@ func main() {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	if v, err := g.SetView("hello", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2, 0); err != nil {
-		if !gocui.IsUnknownView(err) {
-			return err
-		}
-
-		if _, err := g.SetCurrentView("hello"); err != nil {
-			return err
-		}
-
-		fmt.Fprintln(v, "Hello world!")
-	}
 
 	if v, err := g.SetView(name, 0, 0, maxX-1, maxY-4, 0); err != nil {
 		if !gocui.IsUnknownView(err) {
@@ -300,6 +292,7 @@ func nextTask(g *gocui.Gui, v *gocui.View) error {
 	if state == DeleteTask {
 		tasks.selected.tasks.RemoveSelected()
 		state = Normal
+		dirty = true
 	}
 	redraw(g)
 	return nil
@@ -311,6 +304,7 @@ func prevTask(g *gocui.Gui, v *gocui.View) error {
 	if state == DeleteTask {
 		tasks.selected.tasks.RemoveSelected()
 		state = Normal
+		dirty = true
 	}
 	redraw(g)
 	return nil
@@ -364,6 +358,7 @@ func todoBinding(g *gocui.Gui) error {
 		if state == DeleteTask {
 			tasks.selected.tasks.RemoveSelected()
 			state = Normal
+			dirty = true
 		} else {
 			state = DeleteTask
 		}
@@ -399,7 +394,11 @@ func redraw(g *gocui.Gui) {
 	}
 	if v, e := g.View("footer"); e == nil {
 		v.Clear()
-		fmt.Fprintln(v, state)
+		dirtyStr := " "
+		if dirty {
+			dirtyStr = "D"
+		}
+		fmt.Fprintln(v, state, dirtyStr)
 	}
 
 }
@@ -454,6 +453,7 @@ func copyInput(g *gocui.Gui, iv *gocui.View) error {
 		tasks.selected.Add(iv.Buffer())
 
 	}
+	dirty = true
 	iv.Clear()
 	g.Cursor = false
 	g.DeleteViewKeybindings(iv.Name())
