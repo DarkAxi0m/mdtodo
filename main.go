@@ -479,6 +479,7 @@ func todoBinding(g *gocui.Gui) error {
 	g.SetKeybinding(viewname, 'j', gocui.ModNone, next)
 	g.SetKeybinding(viewname, 'k', gocui.ModNone, prev)
 	g.SetKeybinding(viewname, 'i', gocui.ModNone, addView)
+	g.SetKeybinding(viewname, 'I', gocui.ModNone, editView)
 
 	g.SetKeybinding(viewname, 'p', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = State_Project
@@ -514,6 +515,8 @@ func todoBinding(g *gocui.Gui) error {
 }
 
 func redraw(g *gocui.Gui) {
+	doneCount := 0
+	taskCount := 0
 	if v, e := g.View(viewname); e == nil {
 		v.Clear()
 		for _, group := range tasks.items {
@@ -524,6 +527,10 @@ func redraw(g *gocui.Gui) {
 			}
 
 			for _, task := range group.tasks.items {
+				taskCount++
+				if task.done {
+					doneCount++
+				}
 				if !hidedone || !task.done {
 					checked := STYLE_Checked
 					if task.done {
@@ -550,74 +557,93 @@ func redraw(g *gocui.Gui) {
 
 		hidedoneStr := " "
 		if hidedone {
-			hidedoneStr = "Hide"
+			hidedoneStr = "Hide Done"
 		}
 
 		deleteStr := " "
 		if delete {
 			deleteStr = "Del"
 		}
-		fmt.Fprintln(v, state, dirtyStr, hidedoneStr, deleteStr)
+		fmt.Fprintln(v, state, dirtyStr, hidedoneStr, deleteStr, fmt.Sprintf("%d/%d", doneCount, taskCount))
 	}
 
 }
 
-func addView(g *gocui.Gui, cv *gocui.View) error {
-	maxX, maxY := g.Size()
+func editView(g *gocui.Gui, cv *gocui.View) error {
+
 	var title string
-	var cmdname string
+	var val string
 
 	delete = false
 
 	switch state {
 	case State_Task:
-		if tasks.selected != nil {
-			title = "Task for " + tasks.selected.name
-			cmdname = "addTask"
+		if tasks.selected == nil {
+			return nil
 		}
+		title = "Edit Task for " + tasks.selected.name
+		val = tasks.selected.tasks.selected.name
 	case State_Project:
-		title = "Name of Project"
-		cmdname = "addProject"
+		title = "Edit Project Name"
+		val = tasks.selected.name
 	}
 
-	redraw(g)
+	return showInput(g, "edit", title, val)
+}
 
-	if iv, err := g.SetView(cmdname, 3, maxY/2, maxX-3, maxY/2+2, 0); err != nil {
+func addView(g *gocui.Gui, cv *gocui.View) error {
+
+	var title string
+
+	delete = false
+
+	switch state {
+	case State_Task:
+		if tasks.selected == nil {
+			return nil
+		}
+		title = "New Task for " + tasks.selected.name
+	case State_Project:
+		title = "New Project"
+	}
+
+	return showInput(g, "add", title, "")
+}
+
+func showInput(g *gocui.Gui, cmdname string, title string, val string) error {
+	maxX, maxY := g.Size()
+	iv, err := g.SetView(cmdname, 3, maxY/2, maxX-3, maxY/2+2, 0)
+
+	if err != nil {
 		if !gocui.IsUnknownView(err) {
 			return err
 		}
+
 		iv.Title = title
+		iv.TitleColor = gocui.ColorYellow
+		iv.FrameColor = gocui.ColorRed
+		iv.FrameRunes = []rune{'═', '║', '╔', '╗', '╚', '╝', '╠', '╣', '╦', '╩', '╬'}
 		iv.Editable = true
 		g.Cursor = true
+		fmt.Fprint(iv, val)
+		iv.SetCursorX(len(val))
+		iv.TextArea.TypeString(val)
+
 		if _, err := g.SetCurrentView(cmdname); err != nil {
 			return err
 		}
 		g.SetKeybinding(cmdname, gocui.KeyEnter, gocui.ModNone, copyInput)
-
+		g.SetKeybinding(cmdname, gocui.KeyEsc, gocui.ModNone, closeInput)
 	}
+
 	return nil
 }
 
-func copyInput(g *gocui.Gui, iv *gocui.View) error {
+func closeInput(g *gocui.Gui, iv *gocui.View) error {
 	var err error
-	iv.Rewind()
 	var ov *gocui.View
 	ov, _ = g.View(viewname)
 
-	if iv.Buffer() == "" {
-		return nil
-	}
-
-	switch state {
-	case State_Task:
-		if tasks.selected != nil {
-			tasks.selected.Add(iv.Buffer())
-		}
-	case State_Project:
-		tasks.Add(newProject(iv.Buffer()))
-	}
-
-	markDirty()
 	iv.Clear()
 	g.Cursor = false
 	g.DeleteViewKeybindings(iv.Name())
@@ -631,4 +657,36 @@ func copyInput(g *gocui.Gui, iv *gocui.View) error {
 
 	redraw(g)
 	return err
+}
+func copyInput(g *gocui.Gui, iv *gocui.View) error {
+	iv.Rewind()
+
+	if iv.Buffer() == "" {
+		return closeInput(g, iv)
+	}
+
+	switch iv.Name() {
+	case "add":
+		switch state {
+		case State_Task:
+			if tasks.selected != nil {
+				tasks.selected.Add(iv.Buffer())
+			}
+		case State_Project:
+			tasks.Add(newProject(iv.Buffer()))
+		}
+
+	case "edit":
+		switch state {
+		case State_Task:
+			if tasks.selected != nil {
+				tasks.selected.tasks.selected.name = iv.Buffer()
+			}
+		case State_Project:
+			tasks.selected.name = iv.Buffer()
+		}
+	}
+
+	markDirty()
+	return closeInput(g, iv)
 }
