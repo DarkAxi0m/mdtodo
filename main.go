@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
-	"github.com/awesome-gocui/gocui"
+	"github.com/jesseduffield/gocui"
 )
 
 // ---------- Misc function-------------------
@@ -80,9 +82,25 @@ type Task struct {
 	name string
 }
 
+func (t Task) String() string {
+	checkmark := "[ ]" // Default to not done
+	if t.done {
+		checkmark = "[x]"
+	}
+	return fmt.Sprintf("%s %s", checkmark, t.name)
+}
+
 type Project struct {
 	name  string
 	tasks Collection[Task]
+}
+
+func (p Project) String() string {
+	result := fmt.Sprintf("## %s\n", p.name)
+	for _, task := range p.tasks.items {
+		result += fmt.Sprintf("- %s\n", task)
+	}
+	return result
 }
 
 func (b *Project) Add(name string) *Task {
@@ -104,8 +122,62 @@ func newProject(name string) *Project {
 	return tasks
 }
 
-func newProjects() Collection[Project] {
-	return Collection[Project]{items: make([]*Project, 0)}
+type Projects struct {
+	Collection[Project]
+}
+
+func (ps Projects) String() string {
+	result := "# Todo\n\n"
+	for _, project := range ps.items {
+		result += fmt.Sprintf("%s\n", project)
+	}
+	return result
+}
+
+func (ps Projects) SaveToFile(filename string) error {
+	content := ps.String()
+	return os.WriteFile(filename, []byte(content), 0644) // Write to file with appropriate permissions
+}
+
+func newProjects() Projects {
+	return Projects{
+		Collection: Collection[Project]{items: make([]*Project, 0)},
+	}
+}
+
+func ReadFromFile(filename string) (Projects, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return newProjects(), err
+	}
+	defer file.Close()
+
+	var projects Projects
+	var currentProject *Project
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		if strings.HasPrefix(line, "## ") { // Detect project name
+			projectName := strings.TrimPrefix(line, "## ")
+			currentProject = &Project{name: projectName}
+			projects.Add(currentProject)
+		} else if strings.HasPrefix(line, "- [") { // Detect task
+			if currentProject != nil {
+				taskDone := strings.HasPrefix(line, "- [x]") // Task completion check
+				taskName := strings.TrimSpace(line[5:])      // Remove `- [ ] ` or `- [x] `
+				task := &Task{done: taskDone, name: taskName}
+				currentProject.tasks.Add(task)
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return newProjects(), err
+	}
+
+	return projects, nil
 }
 
 //---------- AppState-------------------
@@ -125,59 +197,43 @@ func (s AppState) String() string {
 //---------- Main-------------------
 
 var (
-	filename string
-	tasks    Collection[Project]
+	filename = "todo.md"
+	tasks    Projects
 	state    AppState
 	name     = "todo"
 )
 
-/*
-func LoadMd(v *gocui.View) {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	defer file.Close()
-
-	fmt.Fprintln(v, filename)
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fmt.Fprintln(v, scanner.Text())
-		//	fmt.Println() // Print each line
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Println("Error reading file:", err)
-	}
-}*/
-
 func main() {
-	filename = "todo.md"
+	tasks, _ = ReadFromFile(filename)
 
-	tasks = newProjects()
-	main := tasks.Add(newProject("Main"))
-
-	main.Add("ONE")
-	main.Add("two")
-	main.Add("three")
-
-	main2 := tasks.Add(newProject("Main222"))
-
-	main2.Add("322 3234 4")
-	main2.Add("tw 234 234o")
-	main2.Add("thr243  w gg2 3gee")
-
-	g, err := gocui.NewGui(gocui.OutputNormal, true)
+	g, err := gocui.NewGui(gocui.NewGuiOpts{
+		OutputMode: gocui.OutputTrue,
+		//RuneReplacements: map[rune]string{},
+	})
 	if err != nil {
 		log.Panicln(err)
 	}
 	defer g.Close()
-	g.SelFgColor = gocui.ColorGreen
+
 	g.SetManagerFunc(layout)
 
-	g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit)
+	g.SetKeybinding("", 's', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+		tasks.SaveToFile(filename)
+		return nil
+	})
+
+	g.SetKeybinding("", 'r', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+		tasks, _ = ReadFromFile(filename)
+		redraw(g)
+		return nil
+	})
+
+	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+		log.Panicln(err)
+	}
+	if err := g.SetKeybinding("", 'q', gocui.ModNone, quit); err != nil {
+		log.Panicln(err)
+	}
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
@@ -186,17 +242,32 @@ func main() {
 
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
+	if v, err := g.SetView("hello", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2, 0); err != nil {
+		if !gocui.IsUnknownView(err) {
+			return err
+		}
+
+		if _, err := g.SetCurrentView("hello"); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(v, "Hello world!")
+	}
 
 	if v, err := g.SetView(name, 0, 0, maxX-1, maxY-4, 0); err != nil {
-		if err != gocui.ErrUnknownView {
+		if !gocui.IsUnknownView(err) {
 			return err
 		}
 		v.Title = filename
+
+		if _, err := g.SetCurrentView(name); err != nil {
+			return err
+		}
+
 		todoBinding(g)
 
 		redraw(g)
 
-		g.SetCurrentView(name)
 	}
 
 	if v, err := g.SetView("footer", 0, maxY-3, maxX-1, maxY-1, 0); err != nil {
@@ -205,6 +276,8 @@ func layout(g *gocui.Gui) error {
 
 	return nil
 }
+
+//---------Key binds-----------------------------
 
 func nextProject(g *gocui.Gui, v *gocui.View) error {
 	state = Normal
@@ -242,6 +315,11 @@ func prevTask(g *gocui.Gui, v *gocui.View) error {
 	redraw(g)
 	return nil
 }
+func quit(g *gocui.Gui, v *gocui.View) error {
+	return gocui.ErrQuit
+}
+
+//--------------------------------------
 
 func todoBinding(g *gocui.Gui) error {
 
@@ -254,12 +332,6 @@ func todoBinding(g *gocui.Gui) error {
 
 	g.SetKeybinding(name, gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = Normal
-		redraw(g)
-		return nil
-	})
-
-	g.SetKeybinding(name, ";", gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
-		tasks.selected.Add("ASD")
 		redraw(g)
 		return nil
 	})
@@ -332,38 +404,33 @@ func redraw(g *gocui.Gui) {
 
 }
 
-func quit(g *gocui.Gui, v *gocui.View) error {
-	return gocui.ErrQuit
-}
-
 func inputView(g *gocui.Gui, cv *gocui.View) error {
 	maxX, maxY := g.Size()
 	var title string
-	var name string
+	var cmdname string
 
 	if tasks.selected == nil {
 		title = "Name of Project"
-		name = "addProject"
+		cmdname = "addProject"
 	} else {
 		title = "Task for " + tasks.selected.name
-		name = "addTask"
-
+		cmdname = "addTask"
 	}
 
 	state = Insert
 	redraw(g)
 
-	if iv, err := g.SetView(name, maxX/2-12, maxY/2, maxX/2+12, maxY/2+2, 0); err != nil {
-		if err != gocui.ErrUnknownView {
+	if iv, err := g.SetView(cmdname, 3, maxY/2, maxX-3, maxY/2+2, 0); err != nil {
+		if !gocui.IsUnknownView(err) {
 			return err
 		}
 		iv.Title = title
 		iv.Editable = true
 		g.Cursor = true
-		if _, err := g.SetCurrentView(name); err != nil {
+		if _, err := g.SetCurrentView(cmdname); err != nil {
 			return err
 		}
-		g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, copyInput)
+		g.SetKeybinding(cmdname, gocui.KeyEnter, gocui.ModNone, copyInput)
 
 	}
 	return nil
@@ -373,7 +440,8 @@ func copyInput(g *gocui.Gui, iv *gocui.View) error {
 	var err error
 	iv.Rewind()
 	var ov *gocui.View
-	ov, _ = g.View("todo")
+	ov, _ = g.View(name)
+
 	if iv.Buffer() == "" {
 		inputView(g, ov)
 		return nil
@@ -388,7 +456,7 @@ func copyInput(g *gocui.Gui, iv *gocui.View) error {
 	}
 	iv.Clear()
 	g.Cursor = false
-	g.DeleteKeybindings(iv.Name())
+	g.DeleteViewKeybindings(iv.Name())
 	if err = g.DeleteView(iv.Name()); err != nil {
 		return err
 	}
