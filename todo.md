@@ -1,7 +1,5 @@
 # Todo
 
-## asd
-
 ## Main
 - [x] loading
 - [x] delete project
@@ -10,23 +8,27 @@
 - [x] edit task
 - [ ] select next post delete
 - [x] Esp on task add
-- [ ] key bindings
-- [ ] status bar
 - [x] autosave
 - [x] hide done
-- [ ] hide empty projects
+- [ ] help
+- [ ] key bindings
+- [ ] status bar
 - [x] Dirty Flag
 - [x] Rename projects
 - [x] reorder projects
-- [ ] help
+- [ ] Version numbers
+- [ ] hide empty projects
+- [ ] Highlight what will be deleted
+- [ ] param for todo
 
 ## Later Ideas
-- [ ] install
+- [x] install
 - [ ] Undo Stack
 - [ ] cut/copy tasks
 - [ ] Move task between projects
 - [ ] Notes after todo
 - [ ] Notes project
+- [ ] Global todo
 
 ## test 2
 - [ ] asd
@@ -36,5 +38,5 @@
 - [ ] adasdasd
 - [ ] TESTING
 - [ ] TESTING123
-- [ ] TESTING123asd 
+- [ ] TESTING123asd
 
