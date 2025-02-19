@@ -1,21 +1,33 @@
 # Todo
 
+## test
+- [ ] asd
+- [ ] asd
+- [ ] asd
+
+## asd
+
+## Later Ideas
+- [ ] install
+- [ ] Undo Stack
+- [ ] cut/copy tasks
+- [ ] Move task between projects
+
 ## Main
-- [x] saving
 - [x] loading
-- [ ] Rename projects
-- [ ] delete project
-- [ ] status bar
-- [ ] Esp on task add
-- [ ] key bindings
+- [x] delete project
+- [x] up down, between projects
+- [x] reorder tasks
 - [ ] edit task
+- [ ] select next post delete
+- [x] Esp on task add
+- [ ] key bindings
+- [ ] status bar
 - [x] autosave
 - [x] hide done
 - [ ] hide empty projects
 - [x] Dirty Flag
-- [ ] up down, between projects
-- [ ] disable auto save
-
-## Later Ideas
-- [ ] Undo Stack
+- [ ] Rename projects
+- [x] reorder projects
+- [ ] help
 

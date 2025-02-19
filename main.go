@@ -24,13 +24,15 @@ func updateSelected[T any](items []*T, selected *T, direction int) *T {
 				if i+1 < len(items) {
 					return items[i+1]
 				} else {
-					return items[0]
+					return selected
+					//return items[0]
 				}
 			} else if direction == -1 {
 				if i-1 >= 0 {
 					return items[i-1]
 				} else {
-					return items[len(items)-1]
+					return selected
+					//return items[len(items)-1]
 				}
 			}
 			break
@@ -71,9 +73,53 @@ func (b *Collection[T]) Remove(item *T) {
 	}
 }
 
+func (b *Collection[T]) SelectFirst() *T {
+	if len(b.items) > 0 {
+		b.selected = b.items[0]
+	}
+	return b.selected
+}
+
+func (b *Collection[T]) SelectLast() *T {
+	if len(b.items) > 0 {
+		b.selected = b.items[len(b.items)-1]
+	}
+	return b.selected
+}
+
 func (b *Collection[T]) Select(dir int) *T {
 	b.selected = updateSelected(b.items, b.selected, dir)
 	return b.selected
+}
+
+// findIndex finds the index of a given item in the items slice.
+func (c *Collection[T]) findIndex(item *T) (int, bool) {
+	if item == nil {
+		return -1, false // No item provided
+	}
+
+	for i, v := range c.items {
+		if v == item {
+			return i, true
+		}
+	}
+	return -1, false // Item not found
+}
+
+func (c *Collection[T]) MoveSelected(dir int) *T {
+	index, found := c.findIndex(c.selected)
+	if !found {
+		return nil
+	}
+
+	newIndex := index + dir
+	if newIndex < 0 || newIndex >= len(c.items) {
+		return c.items[index]
+	}
+
+	// Swap the selected item with the new position
+	c.items[index], c.items[newIndex] = c.items[newIndex], c.items[index]
+	return c.items[index]
 }
 
 // ---------- Task ann Projects-------------------
@@ -117,8 +163,20 @@ func (b *Project) Add(name string) *Task {
 func (b *Project) Select(dir int, skipdone bool) *Task {
 	var t *Task
 	for {
+		p := b.tasks.selected //check if it did not move
 		t = b.tasks.Select(dir)
-		if t == nil || !skipdone || !t.done {
+		if t == nil || !skipdone || !t.done || p == t {
+			break
+		}
+	}
+	return t
+}
+func (b *Project) MoveSelected(dir int, skipdone bool) *Task {
+	var t *Task
+	for {
+		p := b.tasks.selected //check if it did not move
+		t = b.tasks.MoveSelected(dir)
+		if t == nil || !skipdone || !t.done || p == t {
 			break
 		}
 	}
@@ -196,13 +254,12 @@ func ReadFromFile(filename string) (Projects, error) {
 type AppState int
 
 const (
-	Normal AppState = iota
-	Insert
-	DeleteTask
+	State_Task AppState = iota
+	State_Project
 )
 
 func (s AppState) String() string {
-	return [...]string{"N", "I", "D"}[s]
+	return [...]string{"Task", "Proj"}[s]
 }
 
 //---------- Main-------------------
@@ -216,11 +273,12 @@ const (
 var (
 	filename = "todo.md"
 	tasks    Projects
-	state    AppState
-	viewname = "todo"
-	dirty    = false
-	autosave = true
-	hidedone = true
+	state    AppState = State_Task
+	viewname          = "todo"
+	dirty             = false
+	autosave          = true
+	hidedone          = true
+	delete            = false
 )
 
 func main() {
@@ -252,7 +310,7 @@ func main() {
 
 	g.SetKeybinding("", 'h', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		hidedone = !hidedone
-		redraw(g)
+
 		return nil
 	})
 
@@ -289,62 +347,112 @@ func layout(g *gocui.Gui) error {
 		if _, err := g.SetCurrentView(viewname); err != nil {
 			return err
 		}
-
 		todoBinding(g)
-
-		redraw(g)
-
 	}
 
 	if v, err := g.SetView("footer", 0, maxY-3, maxX-1, maxY-1, 0); err != nil {
 		v.Frame = false
 	}
-
+	redraw(g)
 	return nil
 }
 
 //---------Key binds-----------------------------
 
-func nextProject(g *gocui.Gui, v *gocui.View) error {
-	state = Normal
-	tasks.Select(-1)
-	redraw(g)
-	return nil
-}
-
-func prevProject(g *gocui.Gui, v *gocui.View) error {
-	state = Normal
-	tasks.Select(+1)
-
-	redraw(g)
-	return nil
-}
-
-func nextTask(g *gocui.Gui, v *gocui.View) error {
-	if tasks.selected != nil {
-		tasks.selected.Select(-1, hidedone)
+func deleteSelected() error {
+	switch state {
+	case State_Task:
+		if tasks.selected != nil {
+			tasks.selected.tasks.RemoveSelected()
+		}
+	case State_Project:
+		tasks.RemoveSelected()
 	}
-	if state == DeleteTask {
-		tasks.selected.tasks.RemoveSelected()
-		state = Normal
+
+	delete = false
+	markDirty()
+	return nil
+}
+
+func next(g *gocui.Gui, v *gocui.View) error {
+	switch state {
+	case State_Task:
+		if tasks.selected != nil {
+
+			p := tasks.selected.tasks.selected
+			if p == tasks.selected.Select(-1, hidedone) {
+				tasks.Select(-1)
+				tasks.selected.tasks.SelectLast()
+			}
+		}
+	case State_Project:
+		tasks.Select(-1)
+	}
+
+	if delete {
+		deleteSelected()
+		prev(g, v)
+	}
+	redraw(g)
+	return nil
+}
+
+func prev(g *gocui.Gui, v *gocui.View) error {
+	switch state {
+	case State_Task:
+		if tasks.selected != nil {
+			p := tasks.selected.tasks.selected
+
+			if p == tasks.selected.Select(+1, hidedone) {
+				tasks.Select(+1)
+				tasks.selected.tasks.SelectFirst()
+			}
+		}
+	case State_Project:
+		tasks.Select(+1)
+	}
+
+	if delete {
+		deleteSelected()
+	}
+	redraw(g)
+	return nil
+}
+
+func swapup(g *gocui.Gui, v *gocui.View) error {
+	switch state {
+	case State_Task:
+		if tasks.selected != nil {
+			tasks.selected.MoveSelected(-1, hidedone)
+			markDirty()
+		}
+	case State_Project:
+		tasks.MoveSelected(-1)
 		markDirty()
+
 	}
+
 	redraw(g)
 	return nil
 }
 
-func prevTask(g *gocui.Gui, v *gocui.View) error {
-	if tasks.selected != nil {
-		tasks.selected.Select(+1, hidedone)
-	}
-	if state == DeleteTask {
-		tasks.selected.tasks.RemoveSelected()
-		state = Normal
+func swapdown(g *gocui.Gui, v *gocui.View) error {
+	switch state {
+	case State_Task:
+		if tasks.selected != nil {
+			tasks.selected.MoveSelected(+1, hidedone)
+			markDirty()
+		}
+	case State_Project:
+		tasks.MoveSelected(+1)
 		markDirty()
+
 	}
+
 	redraw(g)
 	return nil
 }
+
 func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
@@ -360,27 +468,27 @@ func todoBinding(g *gocui.Gui) error {
 	}
 
 	g.SetKeybinding(viewname, gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
-		state = Normal
+		state = State_Task
+		delete = false
 		redraw(g)
 		return nil
 	})
 
-	g.SetKeybinding(viewname, 'J', gocui.ModNone, nextProject)
-	g.SetKeybinding(viewname, 'K', gocui.ModNone, prevProject)
-	g.SetKeybinding(viewname, 'j', gocui.ModNone, nextTask)
-	g.SetKeybinding(viewname, 'k', gocui.ModNone, prevTask)
-	g.SetKeybinding(viewname, gocui.KeyEnter, gocui.ModNone, inputView)
-	g.SetKeybinding(viewname, 'a', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
-		state = Normal
-		redraw(g)
-		return inputView(g, cv)
-	})
+	g.SetKeybinding(viewname, 'J', gocui.ModNone, swapup)
+	g.SetKeybinding(viewname, 'K', gocui.ModNone, swapdown)
+	g.SetKeybinding(viewname, 'j', gocui.ModNone, next)
+	g.SetKeybinding(viewname, 'k', gocui.ModNone, prev)
+	g.SetKeybinding(viewname, 'i', gocui.ModNone, addView)
 
-	g.SetKeybinding(viewname, 'A', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
-		tasks.selected = nil
-		state = Normal
+	g.SetKeybinding(viewname, 'p', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+		state = State_Project
 		redraw(g)
-		return inputView(g, cv)
+		return nil
+	})
+	g.SetKeybinding(viewname, 't', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+		state = State_Task
+		redraw(g)
+		return nil
 	})
 
 	g.SetKeybinding(viewname, gocui.KeySpace, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
@@ -393,12 +501,10 @@ func todoBinding(g *gocui.Gui) error {
 	})
 
 	g.SetKeybinding(viewname, 'd', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
-		if state == DeleteTask {
-			tasks.selected.tasks.RemoveSelected()
-			state = Normal
-			markDirty()
+		if delete {
+			deleteSelected()
 		} else {
-			state = DeleteTask
+			delete = true
 		}
 		redraw(g)
 		return nil
@@ -439,32 +545,41 @@ func redraw(g *gocui.Gui) {
 		v.Clear()
 		dirtyStr := " "
 		if dirty {
-			dirtyStr = "D"
+			dirtyStr = "Dirty"
 		}
 
 		hidedoneStr := " "
 		if hidedone {
-			hidedoneStr = "H"
+			hidedoneStr = "Hide"
 		}
-		fmt.Fprintln(v, state, dirtyStr, hidedoneStr)
+
+		deleteStr := " "
+		if delete {
+			deleteStr = "Del"
+		}
+		fmt.Fprintln(v, state, dirtyStr, hidedoneStr, deleteStr)
 	}
 
 }
 
-func inputView(g *gocui.Gui, cv *gocui.View) error {
+func addView(g *gocui.Gui, cv *gocui.View) error {
 	maxX, maxY := g.Size()
 	var title string
 	var cmdname string
 
-	if tasks.selected == nil {
+	delete = false
+
+	switch state {
+	case State_Task:
+		if tasks.selected != nil {
+			title = "Task for " + tasks.selected.name
+			cmdname = "addTask"
+		}
+	case State_Project:
 		title = "Name of Project"
 		cmdname = "addProject"
-	} else {
-		title = "Task for " + tasks.selected.name
-		cmdname = "addTask"
 	}
 
-	state = Insert
 	redraw(g)
 
 	if iv, err := g.SetView(cmdname, 3, maxY/2, maxX-3, maxY/2+2, 0); err != nil {
@@ -490,16 +605,16 @@ func copyInput(g *gocui.Gui, iv *gocui.View) error {
 	ov, _ = g.View(viewname)
 
 	if iv.Buffer() == "" {
-		inputView(g, ov)
 		return nil
 	}
 
-	switch iv.Name() {
-	case "addProject":
+	switch state {
+	case State_Task:
+		if tasks.selected != nil {
+			tasks.selected.Add(iv.Buffer())
+		}
+	case State_Project:
 		tasks.Add(newProject(iv.Buffer()))
-
-	case "addTask":
-		tasks.selected.Add(iv.Buffer())
 	}
 
 	markDirty()
@@ -513,7 +628,6 @@ func copyInput(g *gocui.Gui, iv *gocui.View) error {
 	if _, err = g.SetCurrentView(ov.Name()); err != nil {
 		return err
 	}
-	state = Normal
 
 	redraw(g)
 	return err
