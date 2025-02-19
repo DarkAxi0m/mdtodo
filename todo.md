@@ -1,18 +1,20 @@
 # Todo
 
 ## Main
-- [ ] saving
-- [ ] loading
+- [x] saving
+- [x] loading
 - [ ] Rename projects
 - [ ] delete project
 - [ ] status bar
 - [ ] Esp on task add
 - [ ] key bindings
 - [ ] edit task
-- [ ] autosave
+- [x] autosave
 - [ ] hide done
 - [ ] hide empty projects
-- [ ] Dirty Flag
+- [x] Dirty Flag
+- [ ] up down, between projects
+- [ ] disable auto save
 
 ## Later Ideas
 - [ ] Undo Stack

@@ -196,12 +196,19 @@ func (s AppState) String() string {
 
 //---------- Main-------------------
 
+const (
+	STYLE_Checked      = "☐"
+	STYLE_UnChecked    = "\U0001f5f9"
+	STYLE_LineSelector = "»"
+)
+
 var (
 	filename = "todo.md"
 	tasks    Projects
 	state    AppState
-	name     = "todo"
+	viewname = "todo"
 	dirty    = false
+	autosave = true
 )
 
 func main() {
@@ -243,16 +250,25 @@ func main() {
 	}
 }
 
+func markDirty() {
+	dirty = true
+	if autosave {
+		tasks.SaveToFile(filename)
+		dirty = false
+	}
+
+}
+
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
-	if v, err := g.SetView(name, 0, 0, maxX-1, maxY-4, 0); err != nil {
+	if v, err := g.SetView(viewname, 0, 0, maxX-1, maxY-4, 0); err != nil {
 		if !gocui.IsUnknownView(err) {
 			return err
 		}
 		v.Title = filename
 
-		if _, err := g.SetCurrentView(name); err != nil {
+		if _, err := g.SetCurrentView(viewname); err != nil {
 			return err
 		}
 
@@ -277,6 +293,7 @@ func nextProject(g *gocui.Gui, v *gocui.View) error {
 	redraw(g)
 	return nil
 }
+
 func prevProject(g *gocui.Gui, v *gocui.View) error {
 	state = Normal
 	tasks.Select(+1)
@@ -292,11 +309,12 @@ func nextTask(g *gocui.Gui, v *gocui.View) error {
 	if state == DeleteTask {
 		tasks.selected.tasks.RemoveSelected()
 		state = Normal
-		dirty = true
+		markDirty()
 	}
 	redraw(g)
 	return nil
 }
+
 func prevTask(g *gocui.Gui, v *gocui.View) error {
 	if tasks.selected != nil {
 		tasks.selected.tasks.Select(+1)
@@ -304,7 +322,7 @@ func prevTask(g *gocui.Gui, v *gocui.View) error {
 	if state == DeleteTask {
 		tasks.selected.tasks.RemoveSelected()
 		state = Normal
-		dirty = true
+		markDirty()
 	}
 	redraw(g)
 	return nil
@@ -316,49 +334,51 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 //--------------------------------------
 
 func todoBinding(g *gocui.Gui) error {
-
 	var v *gocui.View
-	v, _ = g.View(name)
+	v, _ = g.View(viewname)
 
 	if v == nil {
 		return nil
 	}
 
-	g.SetKeybinding(name, gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding(viewname, gocui.KeyEsc, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = Normal
 		redraw(g)
 		return nil
 	})
 
-	g.SetKeybinding(name, 'J', gocui.ModNone, nextProject)
-	g.SetKeybinding(name, 'K', gocui.ModNone, prevProject)
-	g.SetKeybinding(name, 'j', gocui.ModNone, nextTask)
-	g.SetKeybinding(name, 'k', gocui.ModNone, prevTask)
-	g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, inputView)
-	g.SetKeybinding(name, 'a', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding(viewname, 'J', gocui.ModNone, nextProject)
+	g.SetKeybinding(viewname, 'K', gocui.ModNone, prevProject)
+	g.SetKeybinding(viewname, 'j', gocui.ModNone, nextTask)
+	g.SetKeybinding(viewname, 'k', gocui.ModNone, prevTask)
+	g.SetKeybinding(viewname, gocui.KeyEnter, gocui.ModNone, inputView)
+	g.SetKeybinding(viewname, 'a', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = Normal
 		redraw(g)
 		return inputView(g, cv)
 	})
-	g.SetKeybinding(name, 'A', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+
+	g.SetKeybinding(viewname, 'A', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		tasks.selected = nil
 		state = Normal
 		redraw(g)
 		return inputView(g, cv)
 	})
 
-	g.SetKeybinding(name, gocui.KeySpace, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding(viewname, gocui.KeySpace, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		if (tasks.selected != nil) && (tasks.selected.tasks.selected != nil) {
 			tasks.selected.tasks.selected.done = !tasks.selected.tasks.selected.done
+			markDirty()
 		}
 		redraw(g)
 		return nil
 	})
-	g.SetKeybinding(name, 'd', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+
+	g.SetKeybinding(viewname, 'd', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		if state == DeleteTask {
 			tasks.selected.tasks.RemoveSelected()
 			state = Normal
-			dirty = true
+			markDirty()
 		} else {
 			state = DeleteTask
 		}
@@ -368,25 +388,26 @@ func todoBinding(g *gocui.Gui) error {
 
 	return nil
 }
+
 func redraw(g *gocui.Gui) {
-	if v, e := g.View(name); e == nil {
+	if v, e := g.View(viewname); e == nil {
 		v.Clear()
 		for _, group := range tasks.items {
 			if group == tasks.selected {
-				fmt.Fprintln(v, "\n»", group.name, "(", len(group.tasks.items), ")")
+				fmt.Fprintln(v, "\n", STYLE_LineSelector, group.name, "(", len(group.tasks.items), ")")
 			} else {
-				fmt.Fprintln(v, "\n ", group.name, "(", len(group.tasks.items), ")")
+				fmt.Fprintln(v, "\n", " ", group.name, "(", len(group.tasks.items), ")")
 			}
 			for _, task := range group.tasks.items {
-				checked := "☐"
+				checked := STYLE_Checked
 				if task.done {
-					checked = "\U0001f5f9"
+					checked = STYLE_UnChecked
 				}
 				if (task == group.tasks.selected) && (group == tasks.selected) {
 
-					fmt.Fprintln(v, " »", checked, task.name)
+					fmt.Fprintln(v, STYLE_LineSelector, checked, task.name)
 				} else {
-					fmt.Fprintln(v, "  ", checked, task.name)
+					fmt.Fprintln(v, " ", checked, task.name)
 				}
 
 			}
@@ -439,21 +460,22 @@ func copyInput(g *gocui.Gui, iv *gocui.View) error {
 	var err error
 	iv.Rewind()
 	var ov *gocui.View
-	ov, _ = g.View(name)
+	ov, _ = g.View(viewname)
 
 	if iv.Buffer() == "" {
 		inputView(g, ov)
 		return nil
 	}
+
 	switch iv.Name() {
 	case "addProject":
 		tasks.Add(newProject(iv.Buffer()))
 
 	case "addTask":
 		tasks.selected.Add(iv.Buffer())
-
 	}
-	dirty = true
+
+	markDirty()
 	iv.Clear()
 	g.Cursor = false
 	g.DeleteViewKeybindings(iv.Name())
