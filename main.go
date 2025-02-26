@@ -126,14 +126,21 @@ func (c *Collection[T]) MoveSelected(dir int) *T {
 type Task struct {
 	done bool
 	name string
+	tag string
 }
 
 func (t Task) String() string {
-	checkmark := "[ ]" // Default to not done
+	var sb strings.Builder
 	if t.done {
-		checkmark = "[x]"
+		sb.WriteString("[x] ")
+	} else {
+		sb.WriteString("[ ] ")
 	}
-	return fmt.Sprintf("%s %s", checkmark, t.name)
+	if t.tag != "" {
+		sb.WriteString(fmt.Sprintf("%s ", t.tag))
+	}
+	sb.WriteString(t.name)
+	return sb.String()
 }
 
 type Project struct {
@@ -235,8 +242,10 @@ func ReadFromFile(filename string) (Projects, error) {
 		} else if strings.HasPrefix(line, "- [") { // Detect task
 			if currentProject != nil {
 				taskDone := strings.HasPrefix(line, "- [x]") // Task completion check
-				taskName := strings.TrimSpace(line[5:])      // Remove `- [ ] ` or `- [x] `
-				task := &Task{done: taskDone, name: taskName}
+//				taskName := strings.TrimSpace(line[5:])      // Remove `- [ ] ` or `- [x] `
+
+				emoji, taskName := extractEmoji( strings.TrimSpace(line[5:]) )
+				task := &Task{done: taskDone, name: taskName, tag: emoji}
 				currentProject.tasks.Add(task)
 			}
 		}
@@ -474,12 +483,26 @@ func todoBinding(g *gocui.Gui) error {
 		return nil
 	})
 
-	g.SetKeybinding(viewname, 'J', gocui.ModNone, swapup)
-	g.SetKeybinding(viewname, 'K', gocui.ModNone, swapdown)
+	g.SetKeybinding(viewname, 'K', gocui.ModNone, swapup)
+	g.SetKeybinding(viewname, 'J', gocui.ModNone, swapdown)
 	g.SetKeybinding(viewname, 'j', gocui.ModNone, next)
 	g.SetKeybinding(viewname, 'k', gocui.ModNone, prev)
 	g.SetKeybinding(viewname, 'i', gocui.ModNone, addView)
 	g.SetKeybinding(viewname, 'I', gocui.ModNone, editView)
+
+	g.SetKeybinding(viewname, 'e', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+
+		if (tasks.selected != nil) && (tasks.selected.tasks.selected != nil) {
+			if tasks.selected.tasks.selected.tag == "" { 
+			tasks.selected.tasks.selected.tag = "🔥"
+		} else {
+			tasks.selected.tasks.selected.tag = ""
+		}	
+			markDirty()
+		}
+		redraw(g)
+		return nil
+	})	
 
 	g.SetKeybinding(viewname, 'p', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = State_Project
@@ -538,9 +561,9 @@ func redraw(g *gocui.Gui) {
 					}
 					if (task == group.tasks.selected) && (group == tasks.selected) {
 
-						fmt.Fprintln(v, STYLE_LineSelector, checked, task.name)
+						fmt.Fprintln(v, STYLE_LineSelector, checked, task.tag, task.name)
 					} else {
-						fmt.Fprintln(v, " ", checked, task.name)
+						fmt.Fprintln(v, " ", checked, task.tag, task.name)
 					}
 				}
 
@@ -570,11 +593,10 @@ func redraw(g *gocui.Gui) {
 }
 
 func editView(g *gocui.Gui, cv *gocui.View) error {
+	delete = false
 
 	var title string
 	var val string
-
-	delete = false
 
 	switch state {
 	case State_Task:
@@ -592,11 +614,9 @@ func editView(g *gocui.Gui, cv *gocui.View) error {
 }
 
 func addView(g *gocui.Gui, cv *gocui.View) error {
-
-	var title string
-
 	delete = false
 
+	var title string
 	switch state {
 	case State_Task:
 		if tasks.selected == nil {
@@ -658,6 +678,7 @@ func closeInput(g *gocui.Gui, iv *gocui.View) error {
 	redraw(g)
 	return err
 }
+
 func copyInput(g *gocui.Gui, iv *gocui.View) error {
 	iv.Rewind()
 
