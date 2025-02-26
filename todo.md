@@ -6,6 +6,7 @@
 - [x] up down, between projects
 - [x] reorder tasks
 - [x] edit task
+- [ ] 🔥 scrolling large list
 - [ ] key bindings
 - [ ] select next post delete
 - [x] Esp on task add
@@ -22,6 +23,8 @@
 - [ ] param for todo
 - [ ] Update/Create README
 - [ ] tabs for past
+- [ ] linking to project files
+- [ ] linking to external files/urls
 
 ## Later Ideas
 - [x] install
@@ -33,6 +36,7 @@
 - [ ] Global todo
 - [ ] emoji picker
 - [ ] move done to bottom (or top) of sections when saving
+- [ ] sub tasks
 
 ## test 2
 - [ ] asd
