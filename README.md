@@ -2,7 +2,10 @@
 mdtodo is Another command-line interface (CLI) tool that manages your to-do list and saves it in a Markdown (.md) file. 
 This approach combines the simplicity of plain text with the structured formatting of Markdown, making your tasks easy to read and manage.
 
-Note: This project is a learning exercise for me to explore Go. I'm using it on my machine for development and task tracking, but use it at your own risk.
+_Note: This project is a learning exercise for me to explore Go. I'm using it on my machine for development and task tracking, but use it at your own risk._
+
+
+[gocui](https://github.com/jesseduffield/gocui) is used for the Console User Interfaces. gocui is a minimalistic Go-based library that provides a terminal UI, allowing for an interactive and efficient user experience directly in the terminal.
 
 ## todo
 - [ ] lots, see [todo.md](todo.md) ;)
