@@ -32,6 +32,7 @@
 - [ ] Notes project
 - [ ] Global todo
 - [ ] emoji picker
+- [ ] move done to bottom (or top) of sections when saving
 
 ## test 2
 - [ ] asd
