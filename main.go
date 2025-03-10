@@ -59,7 +59,9 @@ func (b *Collection[T]) Add(item *T) *T {
 
 func (b *Collection[T]) RemoveSelected() {
 	if b.selected != nil {
+	    next := b.findNext()
 		b.Remove(b.selected)
+		b.selected = next
 	}
 }
 
@@ -85,6 +87,23 @@ func (b *Collection[T]) SelectLast() *T {
 		b.selected = b.items[len(b.items)-1]
 	}
 	return b.selected
+}
+
+
+func (b *Collection[T]) findNext() *T {
+	index, found := b.findIndex(b.selected)
+	
+	if (!found) {
+		return nil
+	}
+	 
+	newIndex := index + 1
+	if newIndex < 0 || newIndex >= len(b.items) {
+		return b.items[len(b.items)-1] 
+	}
+
+	return b.items[newIndex]
+
 }
 
 func (b *Collection[T]) Select(dir int) *T {
@@ -369,14 +388,20 @@ func layout(g *gocui.Gui) error {
 //---------Key binds-----------------------------
 
 func deleteSelected() error {
+
 	switch state {
 	case State_Task:
 		if tasks.selected != nil {
 			tasks.selected.tasks.RemoveSelected()
+
+
 		}
 	case State_Project:
 		tasks.RemoveSelected()
 	}
+
+
+
 
 	delete = false
 	markDirty()
@@ -485,8 +510,8 @@ func todoBinding(g *gocui.Gui) error {
 
 	g.SetKeybinding(viewname, 'K', gocui.ModNone, swapup)
 	g.SetKeybinding(viewname, 'J', gocui.ModNone, swapdown)
-	g.SetKeybinding(viewname, 'j', gocui.ModNone, next)
-	g.SetKeybinding(viewname, 'k', gocui.ModNone, prev)
+	g.SetKeybinding(viewname, 'j', gocui.ModNone, prev)
+	g.SetKeybinding(viewname, 'k', gocui.ModNone, next)
 	g.SetKeybinding(viewname, 'i', gocui.ModNone, addView)
 	g.SetKeybinding(viewname, 'I', gocui.ModNone, editView)
 

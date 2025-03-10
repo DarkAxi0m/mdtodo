@@ -7,13 +7,14 @@
 - [x] reorder tasks
 - [x] edit task
 - [ ] 🔥 scrolling large list
-- [ ] key bindings
-- [ ] select next post delete
+- [x] 🔥 Swap j/k movment
 - [x] Esp on task add
 - [x] autosave
 - [x] hide done
-- [ ] help
+- [ ] key bindings
+- [ ] select next post delete
 - [ ] status bar
+- [ ] help
 - [x] Dirty Flag
 - [x] Rename projects
 - [x] reorder projects
@@ -39,12 +40,11 @@
 - [ ] sub tasks
 
 ## test 2
+- [ ] asdasd
 - [ ] asd
-- [ ] asd
-- [ ] 🔥 asd 123 asdasdasd
-- [ ] 🔥 asd123
-- [ ] 🔥 adasdasd
-- [ ] TESTING
-- [ ] TESTING123
-- [ ] TESTING123asd
+- [ ] fads
+- [ ] sadf
+- [ ] f2
+- [ ] asfd
+- [ ] f23f
 
