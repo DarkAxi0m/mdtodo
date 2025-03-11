@@ -38,6 +38,7 @@
 - [ ] emoji picker
 - [ ] move done to bottom (or top) of sections when saving
 - [ ] sub tasks
+- [ ] WakaTime API
 
 ## test 2
 - [ ] asdasd
