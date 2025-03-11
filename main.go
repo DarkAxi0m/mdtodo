@@ -59,7 +59,7 @@ func (b *Collection[T]) Add(item *T) *T {
 
 func (b *Collection[T]) RemoveSelected() {
 	if b.selected != nil {
-	    next := b.findNext()
+		next := b.findNext()
 		b.Remove(b.selected)
 		b.selected = next
 	}
@@ -89,17 +89,16 @@ func (b *Collection[T]) SelectLast() *T {
 	return b.selected
 }
 
-
 func (b *Collection[T]) findNext() *T {
 	index, found := b.findIndex(b.selected)
-	
-	if (!found) {
+
+	if !found {
 		return nil
 	}
-	 
+
 	newIndex := index + 1
 	if newIndex < 0 || newIndex >= len(b.items) {
-		return b.items[len(b.items)-1] 
+		return b.items[len(b.items)-1]
 	}
 
 	return b.items[newIndex]
@@ -145,7 +144,7 @@ func (c *Collection[T]) MoveSelected(dir int) *T {
 type Task struct {
 	done bool
 	name string
-	tag string
+	tag  string
 }
 
 func (t Task) String() string {
@@ -230,6 +229,7 @@ func (ps Projects) String() string {
 }
 
 func (ps Projects) SaveToFile(filename string) error {
+	SendHeartbeat(filename, "")
 	content := ps.String()
 	return os.WriteFile(filename, []byte(content), 0644) // Write to file with appropriate permissions
 }
@@ -241,6 +241,7 @@ func newProjects() Projects {
 }
 
 func ReadFromFile(filename string) (Projects, error) {
+	SendHeartbeat(filename, "")
 	file, err := os.Open(filename)
 	if err != nil {
 		return newProjects(), err
@@ -261,9 +262,9 @@ func ReadFromFile(filename string) (Projects, error) {
 		} else if strings.HasPrefix(line, "- [") { // Detect task
 			if currentProject != nil {
 				taskDone := strings.HasPrefix(line, "- [x]") // Task completion check
-//				taskName := strings.TrimSpace(line[5:])      // Remove `- [ ] ` or `- [x] `
+				//				taskName := strings.TrimSpace(line[5:])      // Remove `- [ ] ` or `- [x] `
 
-				emoji, taskName := extractEmoji( strings.TrimSpace(line[5:]) )
+				emoji, taskName := extractEmoji(strings.TrimSpace(line[5:]))
 				task := &Task{done: taskDone, name: taskName, tag: emoji}
 				currentProject.tasks.Add(task)
 			}
@@ -394,14 +395,10 @@ func deleteSelected() error {
 		if tasks.selected != nil {
 			tasks.selected.tasks.RemoveSelected()
 
-
 		}
 	case State_Project:
 		tasks.RemoveSelected()
 	}
-
-
-
 
 	delete = false
 	markDirty()
@@ -518,16 +515,16 @@ func todoBinding(g *gocui.Gui) error {
 	g.SetKeybinding(viewname, 'e', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 
 		if (tasks.selected != nil) && (tasks.selected.tasks.selected != nil) {
-			if tasks.selected.tasks.selected.tag == "" { 
-			tasks.selected.tasks.selected.tag = "🔥"
-		} else {
-			tasks.selected.tasks.selected.tag = ""
-		}	
+			if tasks.selected.tasks.selected.tag == "" {
+				tasks.selected.tasks.selected.tag = "🔥"
+			} else {
+				tasks.selected.tasks.selected.tag = ""
+			}
 			markDirty()
 		}
 		redraw(g)
 		return nil
-	})	
+	})
 
 	g.SetKeybinding(viewname, 'p', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = State_Project

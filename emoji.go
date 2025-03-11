@@ -2,10 +2,10 @@ package main
 
 import (
 	"strings"
-"unicode/utf8")
+	"unicode/utf8"
+)
 
-
-//Thankyou robots
+// Thankyou robots
 func isEmojiStart(s string) bool {
 	if s == "" {
 		return false
@@ -21,7 +21,7 @@ func isEmojiStart(s string) bool {
 		return true
 	case r >= 0x1F680 && r <= 0x1F6FF: // Transport & Map Symbols
 		return true
-	case r >= 0x2600 && r <= 0x26FF:   // Miscellaneous Symbols
+	case r >= 0x2600 && r <= 0x26FF: // Miscellaneous Symbols
 		return true
 	case r >= 0x1F1E6 && r <= 0x1F1FF: // Regional Indicator Symbols (Flags)
 		return true
@@ -30,13 +30,11 @@ func isEmojiStart(s string) bool {
 	}
 }
 
-
 func extractEmoji(s string) (string, string) {
 	if s == "" || !isEmojiStart(s) {
 		return "", s // No emoji found
 	}
 
-	_, size := utf8.DecodeRuneInString(s) // Get the first rune
-	return s[:size], strings.TrimSpace(s[size:])             // Split into emoji and remainder
+	_, size := utf8.DecodeRuneInString(s)        // Get the first rune
+	return s[:size], strings.TrimSpace(s[size:]) // Split into emoji and remainder
 }
-
