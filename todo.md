@@ -6,6 +6,7 @@
 - [x] up down, between projects
 - [x] reorder tasks
 - [x] edit task
+- [ ] 🔥 Handle New/Missing/Empty files
 - [ ] 🔥 scrolling large list
 - [x] 🔥 Swap j/k movment
 - [x] Esp on task add
@@ -41,10 +42,14 @@
 
 ## test 2
 - [ ] asdasd
+- [x] fads
+- [x] sadf
+- [x] asfd
+- [x] testiung 123
+- [ ] testing 10293 123
+- [ ] testing 123
 - [ ] asd
-- [ ] fads
-- [ ] sadf
-- [ ] f2
-- [ ] asfd
+- [x] testing 123
+- [ ] as
 - [ ] f23f
 
