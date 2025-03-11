@@ -142,9 +142,10 @@ func (c *Collection[T]) MoveSelected(dir int) *T {
 
 // ---------- Task ann Projects-------------------
 type Task struct {
-	done bool
-	name string
-	tag  string
+	done  bool
+	name  string
+	tag   string
+	notes string
 }
 
 func (t Task) String() string {
@@ -158,16 +159,24 @@ func (t Task) String() string {
 		sb.WriteString(fmt.Sprintf("%s ", t.tag))
 	}
 	sb.WriteString(t.name)
+	if t.notes != "" {
+		sb.WriteString(fmt.Sprintf("\n%v", t.notes))
+	}
 	return sb.String()
 }
 
 type Project struct {
 	name  string
 	tasks Collection[Task]
+	notes string
 }
 
 func (p Project) String() string {
 	result := fmt.Sprintf("## %s\n", p.name)
+	if p.notes != "" {
+	  result += (fmt.Sprintf("%v\n\n", p.notes))
+	}
+
 	for _, task := range p.tasks.items {
 		result += fmt.Sprintf("- %s\n", task)
 	}
@@ -178,6 +187,7 @@ func (b *Project) Add(name string) *Task {
 	item := &Task{
 		done: false,
 		name: strings.TrimSuffix(name, "\n"),
+		notes: "",
 	}
 
 	b.tasks.Add(item)
@@ -250,24 +260,37 @@ func ReadFromFile(filename string) (Projects, error) {
 
 	var projects Projects
 	var currentProject *Project
-
+	var currentTask *Task
 	scanner := bufio.NewScanner(file)
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
 		if strings.HasPrefix(line, "## ") { // Detect project name
 			projectName := strings.TrimPrefix(line, "## ")
-			currentProject = &Project{name: projectName}
+			currentProject = &Project{name: projectName, notes: ""}
 			projects.Add(currentProject)
+			currentTask = nil
 		} else if strings.HasPrefix(line, "- [") { // Detect task
 			if currentProject != nil {
 				taskDone := strings.HasPrefix(line, "- [x]") // Task completion check
 				//				taskName := strings.TrimSpace(line[5:])      // Remove `- [ ] ` or `- [x] `
 
 				emoji, taskName := extractEmoji(strings.TrimSpace(line[5:]))
-				task := &Task{done: taskDone, name: taskName, tag: emoji}
-				currentProject.tasks.Add(task)
+				currentTask = &Task{done: taskDone, name: taskName, tag: emoji, notes: ""}
+				currentProject.tasks.Add(currentTask)
 			}
+		} else if currentTask != nil {
+			if currentTask.notes != "" {
+				currentTask.notes += "\n"
+			}
+			currentTask.notes += strings.TrimSpace(line)
+		} else if currentProject != nil {
+			if currentProject.notes != "" {
+				currentProject.notes += "\n"
+			}
+			currentProject.notes += strings.TrimSpace(line)
+
 		}
 	}
 
@@ -297,17 +320,21 @@ const (
 	STYLE_Checked      = "☐"
 	STYLE_UnChecked    = "\U0001f5f9"
 	STYLE_LineSelector = "»"
+	STYLE_HasNotes     = "🗒️"
+	STYLE_Boldline     = "━"
+	STYLE_Thinline     = "―"
 )
 
 var (
-	filename = "todo.md"
-	tasks    Projects
-	state    AppState = State_Task
-	viewname          = "todo"
-	dirty             = false
-	autosave          = true
-	hidedone          = true
-	delete            = false
+	filename  = "todo.md"
+	tasks     Projects
+	state     AppState = State_Task
+	viewname           = "todo"
+	dirty              = false
+	autosave           = true
+	hidedone           = true
+	delete             = false
+	showNotes          = false
 )
 
 func main() {
@@ -340,6 +367,11 @@ func main() {
 	g.SetKeybinding("", 'h', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		hidedone = !hidedone
 
+		return nil
+	})
+
+	g.SetKeybinding("", 'n', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+		showNotes = !showNotes
 		return nil
 	})
 
@@ -560,15 +592,30 @@ func todoBinding(g *gocui.Gui) error {
 }
 
 func redraw(g *gocui.Gui) {
+	maxX,_:= g.Size()
 	doneCount := 0
 	taskCount := 0
 	if v, e := g.View(viewname); e == nil {
 		v.Clear()
 		for _, group := range tasks.items {
+
+			noteIcon := ""
+			if !showNotes && group.notes != "" {
+				noteIcon = STYLE_HasNotes
+			}
+
 			if group == tasks.selected {
-				fmt.Fprintln(v, "\n", STYLE_LineSelector, group.name, "(", len(group.tasks.items), ")")
+				fmt.Fprintln(v, "\n", STYLE_LineSelector, group.name, "(", len(group.tasks.items), ")", noteIcon)
 			} else {
-				fmt.Fprintln(v, "\n", " ", group.name, "(", len(group.tasks.items), ")")
+				fmt.Fprintln(v, "\n", " ", group.name, "(", len(group.tasks.items), ")", noteIcon)
+			}
+
+			fmt.Fprintln(v, strings.Repeat(STYLE_Boldline, maxX-2))
+
+			if (group.notes != "") && (showNotes) {
+				fmt.Fprintln(v, "\x1b[2m"+group.notes+"\x1b[0m")
+				fmt.Fprintln(v, strings.Repeat(STYLE_Thinline, maxX-2))
+
 			}
 
 			for _, task := range group.tasks.items {
@@ -577,15 +624,25 @@ func redraw(g *gocui.Gui) {
 					doneCount++
 				}
 				if !hidedone || !task.done {
+					noteIcon := ""
+					if !showNotes && task.notes != "" {
+						noteIcon = STYLE_HasNotes
+					}
+
 					checked := STYLE_Checked
 					if task.done {
 						checked = STYLE_UnChecked
 					}
 					if (task == group.tasks.selected) && (group == tasks.selected) {
 
-						fmt.Fprintln(v, STYLE_LineSelector, checked, task.tag, task.name)
+						fmt.Fprintln(v, STYLE_LineSelector, checked, task.tag, task.name, noteIcon)
 					} else {
-						fmt.Fprintln(v, " ", checked, task.tag, task.name)
+						fmt.Fprintln(v, " ", checked, task.tag, task.name, noteIcon)
+					}
+
+					if task.notes != "" && showNotes {
+
+						fmt.Fprintln(v, "\x1b[2m"+task.notes+"\x1b[0m")
 					}
 				}
 
@@ -609,6 +666,7 @@ func redraw(g *gocui.Gui) {
 		if delete {
 			deleteStr = "Del"
 		}
+
 		fmt.Fprintln(v, state, dirtyStr, hidedoneStr, deleteStr, fmt.Sprintf("%d/%d", doneCount, taskCount))
 	}
 

@@ -1,7 +1,10 @@
 # Todo
 
 ## Main
+A note about main
+
 - [x] loading
+Test Note
 - [x] delete project
 - [x] up down, between projects
 - [x] reorder tasks
@@ -23,7 +26,10 @@
 - [ ] hide empty projects
 - [ ] Highlight what will be deleted
 - [ ] param for todo
+A NOTE#
 - [ ] Update/Create README
+a note that is a two
+line note !!
 - [ ] tabs for past
 - [ ] linking to project files
 - [ ] linking to external files/urls
@@ -47,10 +53,10 @@
 - [x] sadf
 - [x] asfd
 - [x] testiung 123
-- [ ] testing 10293 123
-- [ ] testing 123
+- [x] testing 10293 123
+- [x] testing 123
 - [ ] asd
 - [x] testing 123
 - [ ] as
-- [ ] f23f
+- [ ] asds
 
