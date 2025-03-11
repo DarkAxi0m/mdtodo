@@ -174,7 +174,7 @@ type Project struct {
 func (p Project) String() string {
 	result := fmt.Sprintf("## %s\n", p.name)
 	if p.notes != "" {
-		result += (fmt.Sprintf("%v\n\n", p.notes))
+		result += (fmt.Sprintf("%v\n", p.notes))
 	}
 
 	for _, task := range p.tasks.items {

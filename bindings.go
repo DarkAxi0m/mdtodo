@@ -10,11 +10,14 @@ import (
 
 // KeyBindings holds the key mapping
 type KeyBindings struct {
-	Quit      string `json:"Quit"`
-	Load      string `json:"Load"`
-	Save      string `json:"Save"`
-	ShowDone  string `json:"ShowDone"`
+	Quit     string `json:"Quit"`
+	Load     string `json:"Load"`
+	Save     string `json:"Save"`
+	ShowDone string `json:"ShowDone"`
+
 	ShowNotes string `json:"SnowNotes"`
+	EditNotes string `json:"EditNotes"`
+
 	MoveUp    string `json:"MoveUp"`
 	MoveDown  string `json:"MoveDown"`
 	ShiftUp   string `json:"ShiftUp"`
@@ -46,11 +49,13 @@ func mergeNonEmptyFields(dest, src interface{}) {
 
 func defaultKeyBindings() *KeyBindings {
 	return &KeyBindings{
-		Quit:      "q",
-		Load:      "l",
-		Save:      "w",
-		ShowDone:  "h",
-		ShowNotes: "S",
+		Quit:     "q",
+		Load:     "l",
+		Save:     "w",
+		ShowDone: "h",
+
+		ShowNotes: "N",
+		EditNotes: "n",
 
 		Delete: "d",
 
