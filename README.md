@@ -11,6 +11,11 @@ _Note: This project is a learning exercise for me to explore Go. I'm using it on
 - [ ] lots, see [todo.md](todo.md) ;)
 
 
+## Wakatime
+If the `wakatime-cli` is detected in your system’s PATH, the tool will automatically send [Wakatime HeartBeats](https://wakatime.com).  
+Currently, it neither installs nor configures `wakatime-cli` if the executable is not found.
+
+
 ## Contributing
 
 Contributions are welcome! If you have suggestions for improvements or new features, feel free to open an issue or submit a pull request.
