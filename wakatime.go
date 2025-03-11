@@ -33,7 +33,7 @@ func SendHeartbeat(filename, project string) {
 			"--write",
 			"--entity", filename,
 			"--project", project,
-			"--plugin", "mdtodo/0.0.1",
+			"--plugin", ApplicationName+"/"+ApplicationVersion,
 			"--category", "planning",
 		)
 

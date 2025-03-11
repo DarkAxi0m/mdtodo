@@ -3,6 +3,9 @@
 ## Main
 A note about main
 
+
+
+
 - [x] loading
 Test Note
 - [x] delete project
@@ -15,7 +18,7 @@ Test Note
 - [x] Esp on task add
 - [x] autosave
 - [x] hide done
-- [ ] key bindings
+- [x] key bindings
 - [ ] select next post delete
 - [ ] status bar
 - [ ] help
@@ -59,4 +62,6 @@ line note !!
 - [x] testing 123
 - [ ] as
 - [ ] asds
+- [x] asdddd
+- [ ] asdasdddd asdad
 

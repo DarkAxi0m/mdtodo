@@ -174,7 +174,7 @@ type Project struct {
 func (p Project) String() string {
 	result := fmt.Sprintf("## %s\n", p.name)
 	if p.notes != "" {
-	  result += (fmt.Sprintf("%v\n\n", p.notes))
+		result += (fmt.Sprintf("%v\n\n", p.notes))
 	}
 
 	for _, task := range p.tasks.items {
@@ -185,8 +185,8 @@ func (p Project) String() string {
 
 func (b *Project) Add(name string) *Task {
 	item := &Task{
-		done: false,
-		name: strings.TrimSuffix(name, "\n"),
+		done:  false,
+		name:  strings.TrimSuffix(name, "\n"),
 		notes: "",
 	}
 
@@ -326,6 +326,7 @@ const (
 )
 
 var (
+	bindings  *KeyBindings
 	filename  = "todo.md"
 	tasks     Projects
 	state     AppState = State_Task
@@ -338,6 +339,8 @@ var (
 )
 
 func main() {
+	bindings = LoadKeyBindings()
+
 	tasks, _ = ReadFromFile(filename)
 
 	g, err := gocui.NewGui(gocui.NewGuiOpts{
@@ -351,26 +354,26 @@ func main() {
 
 	g.SetManagerFunc(layout)
 
-	g.SetKeybinding("", 'w', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding("", rune(bindings.Save[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		tasks.SaveToFile(filename)
 		dirty = false
 		redraw(g)
 		return nil
 	})
 
-	g.SetKeybinding("", 'r', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding("", rune(bindings.Load[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		tasks, _ = ReadFromFile(filename)
 		redraw(g)
 		return nil
 	})
 
-	g.SetKeybinding("", 'h', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding("", rune(bindings.ShowDone[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		hidedone = !hidedone
 
 		return nil
 	})
 
-	g.SetKeybinding("", 'n', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding("", rune(bindings.ShowNotes[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		showNotes = !showNotes
 		return nil
 	})
@@ -378,7 +381,7 @@ func main() {
 	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
-	if err := g.SetKeybinding("", 'q', gocui.ModNone, quit); err != nil {
+	if err := g.SetKeybinding("", rune(bindings.Quit[0]), gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
 
@@ -537,14 +540,14 @@ func todoBinding(g *gocui.Gui) error {
 		return nil
 	})
 
-	g.SetKeybinding(viewname, 'K', gocui.ModNone, swapup)
-	g.SetKeybinding(viewname, 'J', gocui.ModNone, swapdown)
-	g.SetKeybinding(viewname, 'j', gocui.ModNone, prev)
-	g.SetKeybinding(viewname, 'k', gocui.ModNone, next)
-	g.SetKeybinding(viewname, 'i', gocui.ModNone, addView)
-	g.SetKeybinding(viewname, 'I', gocui.ModNone, editView)
+	g.SetKeybinding(viewname, rune(bindings.ShiftUp[0]), gocui.ModNone, swapup)
+	g.SetKeybinding(viewname, rune(bindings.ShiftDown[0]), gocui.ModNone, swapdown)
+	g.SetKeybinding(viewname, rune(bindings.MoveUp[0]), gocui.ModNone, prev)
+	g.SetKeybinding(viewname, rune(bindings.MoveDown[0]), gocui.ModNone, next)
+	g.SetKeybinding(viewname, rune(bindings.AddTask[0]), gocui.ModNone, addView)
+	g.SetKeybinding(viewname, rune(bindings.EditTask[0]), gocui.ModNone, editView)
 
-	g.SetKeybinding(viewname, 'e', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding(viewname, rune(bindings.TagTask[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 
 		if (tasks.selected != nil) && (tasks.selected.tasks.selected != nil) {
 			if tasks.selected.tasks.selected.tag == "" {
@@ -558,18 +561,24 @@ func todoBinding(g *gocui.Gui) error {
 		return nil
 	})
 
-	g.SetKeybinding(viewname, 'p', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding(viewname, rune(bindings.ModeProject[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = State_Project
 		redraw(g)
 		return nil
 	})
-	g.SetKeybinding(viewname, 't', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding(viewname, rune(bindings.ModeTask[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		state = State_Task
 		redraw(g)
 		return nil
 	})
 
-	g.SetKeybinding(viewname, gocui.KeySpace, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	var toggleBind interface{}
+	toggleBind = gocui.KeySpace
+	if bindings.ToggleTask != " " {
+		toggleBind = rune(bindings.ToggleTask[0])
+	}
+
+	g.SetKeybinding(viewname, toggleBind, gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		if (tasks.selected != nil) && (tasks.selected.tasks.selected != nil) {
 			tasks.selected.tasks.selected.done = !tasks.selected.tasks.selected.done
 			markDirty()
@@ -578,7 +587,7 @@ func todoBinding(g *gocui.Gui) error {
 		return nil
 	})
 
-	g.SetKeybinding(viewname, 'd', gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
+	g.SetKeybinding(viewname, rune(bindings.Delete[0]), gocui.ModNone, func(g *gocui.Gui, cv *gocui.View) error {
 		if delete {
 			deleteSelected()
 		} else {
@@ -592,7 +601,7 @@ func todoBinding(g *gocui.Gui) error {
 }
 
 func redraw(g *gocui.Gui) {
-	maxX,_:= g.Size()
+	maxX, _ := g.Size()
 	doneCount := 0
 	taskCount := 0
 	if v, e := g.View(viewname); e == nil {
