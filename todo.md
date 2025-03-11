@@ -19,7 +19,7 @@ Test Note
 - [x] autosave
 - [x] hide done
 - [x] key bindings
-- [ ] select next post delete
+- [ ] select next post delete or done
 - [ ] status bar
 - [ ] help
 - [x] Dirty Flag
@@ -36,19 +36,22 @@ line note !!
 - [ ] tabs for past
 - [ ] linking to project files
 - [ ] linking to external files/urls
+- [ ] load/save config
+- [ ] edit Notes
 
 ## Later Ideas
 - [x] install
 - [ ] Undo Stack
 - [ ] cut/copy tasks
 - [ ] Move task between projects
-- [ ] Notes after todo
-- [ ] Notes project
+- [x] Notes after todo
+- [x] Notes project
 - [ ] Global todo
 - [ ] emoji picker
 - [ ] move done to bottom (or top) of sections when saving
 - [ ] sub tasks
-- [ ] WakaTime API
+- [x] WakaTime API
+- [ ] Search
 
 ## test 2
 - [ ] asdasd
